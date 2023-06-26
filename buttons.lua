@@ -985,7 +985,7 @@ function ConRO:DefenseWindowFrame()
 
 		cd:SetAllPoints(frame);
 		cd:SetFrameStrata('MEDIUM');
-		cd:SetFrameLevel('54');
+		cd:SetFrameLevel('85');
 		if ConRO.db.profile.enableWindowCooldown then
 			cd:SetScript("OnEvent",function(self)
 				local gcdStart, gcdDuration = GetSpellCooldown(61304)
