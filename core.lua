@@ -2743,6 +2743,8 @@ function ConRO:PLAYER_TARGET_CHANGED()
 		end
 
 		if ConRO.db.profile.enableDefenseWindow and ConRO.db.profile.combatWindow and ConRO:TarHostile() then
+			ConROWindow:Show();
+			ConRONextWindow:Show();
 			ConRODefenseWindow:Show();
 		elseif ConRO.db.profile.enableDefenseWindow and not ConRO.db.profile.combatWindow then
 			ConRODefenseWindow:Show();
