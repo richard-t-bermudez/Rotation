@@ -2594,15 +2594,15 @@ end
 function ConRO:PLAYER_MOUNT_DISPLAY_CHANGED()
 	C_Timer.After(1, function()
 		if ConRO:Dragonriding() and self.ModuleLoaded then
-			self:DisableRotation();
-			self:DisableDefense();
+			ConROWindow:Hide();
+			ConRONextWindow:Hide();
+			ConRODefenseWindow:Hide();
 		end
 
 		if not ConRO:Dragonriding() then
-			self:DisableRotation();
-			self:DisableDefense();
-			self:EnableRotation();
-			self:EnableDefense();
+			ConROWindow:Show();
+			ConRONextWindow:Show();
+			ConRODefenseWindow:Show();
 		end
 	end);
 end
