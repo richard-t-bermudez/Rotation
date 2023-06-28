@@ -2599,7 +2599,7 @@ function ConRO:PLAYER_MOUNT_DISPLAY_CHANGED()
 			ConRODefenseWindow:Hide();
 		end
 
-		if not ConRO:Dragonriding() then
+		if not ConRO:Dragonriding() and ConRO:TarHostile() then
 			ConROWindow:Show();
 			ConRONextWindow:Show();
 			ConRODefenseWindow:Show();
