@@ -2,7 +2,14 @@ ConRO.RaidBuffs = {};
 ConRO.WarningFlags = {};
 
 -- Global cooldown spell id
--- GlobalCooldown = 61304;
+local _GlobalCooldown = 61304;
+
+-- Global functions
+local GetSpellCharges = C_Spell.GetSpellCharges
+local GetSpellInfo = C_Spell and C_Spell.GetSpellInfo or GetSpellInfo
+local GetSpellCooldown = C_Spell and C_Spell.GetSpellCooldown
+local IsUsableSpell = C_Spell.IsSpellUsable
+local UnitAura = C_UnitAuras.GetAuraDataByIndex
 
 local INF = 2147483647;
 
@@ -533,21 +540,45 @@ function ConRO:UnitAura(spellID, timeShift, unit, filter, isWeapon)
 		if hasMainHandEnchant and mainBuffId == spellID then
 			if mainHandExpiration ~= nil and (mainHandExpiration/1000) > timeShift then
 				local dur = (mainHandExpiration/1000) - (timeShift or 0);
-				return true, count, dur;
+				return true, applications, dur;
 			end
 		elseif hasOffHandEnchant and offBuffId == spellID then
 			if offHandExpiration ~= nil and (offHandExpiration/1000) > timeShift then
 				local dur = (offHandExpiration/1000) - (timeShift or 0);
-				return true, count, dur;
+				return true, applications, dur;
 			end
 		end
 	else
 		for i=1,40 do
-			local _, _, count, _, _, expirationTime, _, _, _, spell = UnitAura(unit, i, filter);
+			local applications, auraInstanceID, canApplyAura, charges, dispelName, duration, expirationTime, icon, isBossAura, isFromPlayerOrPlayerPet, isHarmful, isHelpful, isNameplateOnly, isRaid, isStealable, maxCharges, name, nameplateShowAll, nameplateShowPersonal, points, sourceUnit, spell, timeMod
+				local aura = UnitAura(unit, i, filter);
+				applications = aura and aura.applications;
+				auraInstanceID = aura and aura.auraInstanceID;
+				canApplyAura = aura and aura.canApplyAura;
+				charges = aura and aura.charges;
+				dispelName = aura and aura.dispelName;
+				duration = aura and aura.duration;
+				expirationTime = aura and aura.expirationTime;
+				icon = aura and aura.icon;
+				isBossAura = aura and aura.isBossAura;
+				isFromPlayerOrPlayerPet = aura and aura.isFromPlayerOrPlayerPet;
+				isHarmful = aura and aura.isHarmful;
+				isHelpful = aura and aura.isHelpful;
+				isNameplateOnly = aura and aura.isNameplateOnly;
+				isRaid = aura and aura.isRaid;
+				isStealable = aura and aura.isStealable;
+				maxCharges = aura and aura.maxCharges;
+				name = aura and aura.name;
+				nameplateShowAll = aura and aura.nameplateShowAll;
+				nameplateShowPersonal = aura and aura.nameplateShowPersonal;
+				points = aura and aura.points;
+				sourceUnit = aura and aura.sourceUnit;
+				spell = aura and aura.spellId;
+				timeMod = aura and aura.timeMod;
 			if spell == spellID then
 				if expirationTime ~= nil and (expirationTime - GetTime()) > timeShift then
 					local dur = expirationTime - GetTime() - (timeShift or 0);
-					return true, count, dur;
+					return true, applications, dur;
 				end
 			end
 		end
@@ -898,7 +929,10 @@ function ConRO:EndCast(target)
 
 	-- we can only check player global cooldown
 	if target == 'player' then
-		local gstart, gduration = GetSpellCooldown(61304);
+		local gstart, gduration
+			local spellCooldownInfo = _GlobalCooldown and C_Spell.GetSpellCooldown(_GlobalCooldown)
+			gstart = spellCooldownInfo and spellCooldownInfo.startTime
+			gduration = spellCooldownInfo and spellCooldownInfo.duration
 		gcd = gduration - (t - gstart);
 
 		if gcd < 0 then
@@ -1142,7 +1176,12 @@ function ConRO:ItemReady(_Item_ID, timeShift)
 end
 
 function ConRO:SpellCharges(spellid)
-	local currentCharges, maxCharges, cooldownStart, maxCooldown = GetSpellCharges(spellid);
+	local currentCharges, maxCharges, cooldownStart, cooldownDuration
+		local spellChargeInfo = C_Spell.GetSpellCharges(spellid);
+			currentCharges = spellChargeInfo and spellChargeInfo.currentCharges
+			maxCharges = spellChargeInfo and spellChargeInfo.maxCharges
+			cooldownStart = spellChargeInfo and spellChargeInfo.cooldownStartTime
+			maxCooldown = spellChargeInfo and spellChargeInfo.cooldownDuration
 	local currentCooldown = 0;
 		if currentCharges ~= nil and currentCharges < maxCharges then
 			currentCooldown = (maxCooldown - (GetTime() - cooldownStart));
@@ -1208,7 +1247,11 @@ function ConRO:GlobalCooldown()
 end
 
 function ConRO:Cooldown(spellid, timeShift)
-	local start, maxCooldown, enabled = GetSpellCooldown(spellid);
+	local start, maxCooldown, enabled
+		local spellCooldownInfo = GetSpellCooldown(spellid);
+		start = spellCooldownInfo and spellCooldownInfo.startTime;
+		maxCooldown = spellCooldownInfo and spellCooldownInfo.duration;
+		enabled = spellCooldownInfo and spellCooldownInfo.isEnabled;
 	local baseCooldownMS, gcdMS = GetSpellBaseCooldown(spellid);
 	local baseCooldown = 0;
 
