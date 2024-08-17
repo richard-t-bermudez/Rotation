@@ -2494,10 +2494,14 @@ function ConRO:InvokeNextDef()
 	local iterateDef = self:NextDef(timeShift, currentSpell, gcd, self.PlayerTalents, self.PvPTalents);
 	self.Def = self.SuggestedDefSpells[1];
 
-	local spellName, _, spellTexture
+	local spellName, spellTexture;
+	if self.Def then
 		local spellInfo = C_Spell.GetSpellInfo(self.Def);
-		spellName = spellInfo and spellInfo.name;
-		spellTexture = spellInfo and spellInfo.originalIconID;
+		if spellInfo then
+			spellName = spellInfo.name;
+			spellTexture = spellInfo.originalIconID;
+		end
+	end
 	local color = ConRO.db.profile._Defense_Overlay_Color;
 
 	if (oldSkill ~= self.Def or oldSkill == nil) and self.Def ~= nil then
