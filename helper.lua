@@ -535,50 +535,34 @@ end
 
 function ConRO:UnitAura(spellID, timeShift, unit, filter, isWeapon)
 	timeShift = timeShift or 0;
+	
+	-- Handling weapon enchants
 	if isWeapon == "Weapon" then
 		local hasMainHandEnchant, mainHandExpiration, _, mainBuffId, hasOffHandEnchant, offHandExpiration, _, offBuffId = GetWeaponEnchantInfo()
 		if hasMainHandEnchant and mainBuffId == spellID then
-			if mainHandExpiration ~= nil and (mainHandExpiration/1000) > timeShift then
-				local dur = (mainHandExpiration/1000) - (timeShift or 0);
-				return true, applications, dur;
+			if mainHandExpiration and (mainHandExpiration / 1000) > timeShift then
+				local dur = (mainHandExpiration / 1000) - timeShift;
+				return true, 0, dur;  -- No count information for weapon enchants
 			end
 		elseif hasOffHandEnchant and offBuffId == spellID then
-			if offHandExpiration ~= nil and (offHandExpiration/1000) > timeShift then
-				local dur = (offHandExpiration/1000) - (timeShift or 0);
-				return true, applications, dur;
+			if offHandExpiration and (offHandExpiration / 1000) > timeShift then
+				local dur = (offHandExpiration / 1000) - timeShift;
+				return true, 0, dur;  -- No count information for weapon enchants
 			end
 		end
 	else
-		for i=1,40 do
-			local applications, auraInstanceID, canApplyAura, charges, dispelName, duration, expirationTime, icon, isBossAura, isFromPlayerOrPlayerPet, isHarmful, isHelpful, isNameplateOnly, isRaid, isStealable, maxCharges, name, nameplateShowAll, nameplateShowPersonal, points, sourceUnit, spell, timeMod
-				local aura = UnitAura(unit, i, filter);
-				applications = aura and aura.applications;
-				auraInstanceID = aura and aura.auraInstanceID;
-				canApplyAura = aura and aura.canApplyAura;
-				charges = aura and aura.charges;
-				dispelName = aura and aura.dispelName;
-				duration = aura and aura.duration;
-				expirationTime = aura and aura.expirationTime;
-				icon = aura and aura.icon;
-				isBossAura = aura and aura.isBossAura;
-				isFromPlayerOrPlayerPet = aura and aura.isFromPlayerOrPlayerPet;
-				isHarmful = aura and aura.isHarmful;
-				isHelpful = aura and aura.isHelpful;
-				isNameplateOnly = aura and aura.isNameplateOnly;
-				isRaid = aura and aura.isRaid;
-				isStealable = aura and aura.isStealable;
-				maxCharges = aura and aura.maxCharges;
-				name = aura and aura.name;
-				nameplateShowAll = aura and aura.nameplateShowAll;
-				nameplateShowPersonal = aura and aura.nameplateShowPersonal;
-				points = aura and aura.points;
-				sourceUnit = aura and aura.sourceUnit;
-				spell = aura and aura.spellId;
-				timeMod = aura and aura.timeMod;
-			if spell == spellID then
-				if expirationTime ~= nil and (expirationTime - GetTime()) > timeShift then
-					local dur = expirationTime - GetTime() - (timeShift or 0);
-					return true, applications, dur;
+		-- Iterating through unit auras
+		for i = 1, 40 do
+			local aura = C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
+			if not aura then
+				break  -- No more auras to check
+			end
+
+			if aura.spellId == spellID then
+				local expirationTime = aura.expirationTime
+				if expirationTime and (expirationTime - GetTime()) > timeShift then
+					local dur = expirationTime - GetTime() - timeShift
+					return true, aura.applications or 1, dur
 				end
 			end
 		end
@@ -587,22 +571,21 @@ function ConRO:UnitAura(spellID, timeShift, unit, filter, isWeapon)
 end
 
 function ConRO:Form(spellID)
-	for i=1,40 do
-		local _, _, count, _, _, _, _, _, _, spell = UnitAura("player", i);
-			if spell == spellID then
-				return true, count;
-			end
+	for i = 1, 40 do
+		local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL");
+		if aura and aura.spellId == spellID then
+			return true, aura.applications or 1;
+		end
 	end
 	return false, 0;
 end
 
 function ConRO:PersistentDebuff(spellID)
-	for i=1,40 do
-		local _, _, count, _, _, _, _, _, _, spell = UnitAura("target", i, 'PLAYER|HARMFUL');
-			if spell == spellID then
-				return true, count;
-			end
-
+	for i = 1, 40 do
+		local aura = C_UnitAuras.GetAuraDataByIndex("target", i, "PLAYER|HARMFUL");
+		if aura and aura.spellId == spellID then
+			return true, aura.applications or 1;
+		end
 	end
 	return false, 0;
 end
@@ -618,14 +601,21 @@ end
 function ConRO:AnyTargetAura(spellID)
 	local haveBuff = false;
 	local count = 0;
+
+	-- Iterate over nameplates
 	for i = 1, 15 do
 		if UnitExists('nameplate' .. i) then
-			for x=1, 40 do
-				local spell = select(10, UnitAura('nameplate' .. i, x, 'PLAYER|HARMFUL'));
-				if spell == spellID then
+			-- Iterate over auras on the current nameplate
+			for x = 1, 40 do
+				local aura = C_UnitAuras.GetAuraDataByIndex('nameplate' .. i, x, 'PLAYER|HARMFUL')
+				if not aura then
+					break  -- No more auras to check
+				end
+
+				if aura.spellId == spellID then
 					haveBuff = true;
 					count = count + 1;
-					break;
+					break;  -- No need to check further auras on this nameplate
 				end
 			end
 		end
@@ -636,10 +626,11 @@ end
 
 function ConRO:Purgable()
 	local purgable = false;
-	for i=1,40 do
-	local _, _, _, _, _, _, _, isStealable = UnitAura('target', i, 'HELPFUL');
-		if isStealable == true then
+	for i = 1, 40 do
+		local aura = C_UnitAuras.GetAuraDataByIndex("target", i, "HELPFUL");
+		if aura and aura.isStealable then
 			purgable = true;
+			break;
 		end
 	end
 	return purgable;
@@ -647,7 +638,7 @@ end
 
 function ConRO:Heroism()
 	local _Bloodlust = 2825;
-	local _TimeWarp	= 80353;
+	local _TimeWarp = 80353;
 	local _Heroism = 32182;
 	local _PrimalRage = 264667;
 	local _AncientHysteria = 90355;
@@ -668,49 +659,77 @@ function ConRO:Heroism()
 	local buffed = false;
 	local sated = false;
 
-		local hasteBuff = {
-			bl = ConRO:Aura(_Bloodlust, timeShift);
-			tw = ConRO:Aura(_TimeWarp, timeShift);
-			hero = ConRO:Aura(_Heroism, timeShift);
-			pr = ConRO:Aura(_PrimalRage, timeShift);
-			ah = ConRO:Aura(_AncientHysteria, timeShift);
-			nw = ConRO:Aura(_Netherwinds, timeShift);
-			dof = ConRO:Aura(_DrumsofFuryBuff, timeShift);
-			dotm = ConRO:Aura(_DrumsoftheMountainBuff, timeShift);
-			fota = ConRO:Aura(_FuryoftheAspects, timeShift);
-		}
-		local satedDebuff = {
-			ex = UnitDebuff('player', _Exhaustion);
-			sated = UnitDebuff('player', _Sated);
-			td = UnitDebuff('player', _TemporalDisplacement);
-			ins = UnitDebuff('player', _Insanity);
-			fat = UnitDebuff('player', _Fatigued);
-			ex2 = UnitDebuff('player', _Exhaustion2);
-		}
-		local hasteCount = 0;
-			for k, v in pairs(hasteBuff) do
-				if v then
-					hasteCount = hasteCount + 1;
-				end
+	-- Function to check for specific buffs
+	local function HasBuff(buffID)
+		return ConRO:Aura(buffID, timeShift) ~= nil
+	end
+
+	-- Function to check for specific debuffs using the new API
+	local function HasDebuff(debuffID)
+		local i = 1
+		while true do
+			local debuff = C_UnitAuras.GetDebuffDataByIndex("player", i)
+			if not debuff then
+				break
 			end
-
-		if hasteCount > 0 then
-			buffed = true;
-		end
-
-		local satedCount = 0;
-			for k, v in pairs(satedDebuff) do
-				if v then
-					satedCount = satedCount + 1;
-				end
+			if debuff.spellId == debuffID then
+				return true
 			end
-
-		if satedCount > 0 then
-			sated = true;
+			i = i + 1
 		end
+		return false
+	end
 
-	return buffed, sated;
+	-- Check for Heroism/Lust buffs
+	local hasteBuff = {
+		bl = HasBuff(_Bloodlust),
+		tw = HasBuff(_TimeWarp),
+		hero = HasBuff(_Heroism),
+		pr = HasBuff(_PrimalRage),
+		ah = HasBuff(_AncientHysteria),
+		nw = HasBuff(_Netherwinds),
+		dof = HasBuff(_DrumsofFuryBuff),
+		dotm = HasBuff(_DrumsoftheMountainBuff),
+		fota = HasBuff(_FuryoftheAspects)
+	}
+
+	-- Check for Sated debuffs using the new API
+	local satedDebuff = {
+		ex = HasDebuff(_Exhaustion),
+		sated = HasDebuff(_Sated),
+		td = HasDebuff(_TemporalDisplacement),
+		ins = HasDebuff(_Insanity),
+		fat = HasDebuff(_Fatigued),
+		ex2 = HasDebuff(_Exhaustion2)
+	}
+
+	-- Count active haste buffs
+	local hasteCount = 0
+	for _, v in pairs(hasteBuff) do
+		if v then
+			hasteCount = hasteCount + 1
+		end
+	end
+
+	if hasteCount > 0 then
+		buffed = true
+	end
+
+	-- Count active sated debuffs
+	local satedCount = 0
+	for _, v in pairs(satedDebuff) do
+		if v then
+			satedCount = satedCount + 1
+		end
+	end
+
+	if satedCount > 0 then
+		sated = true
+	end
+
+	return buffed, sated
 end
+
 
 function ConRO:InRaid()
 	local numGroupMembers = GetNumGroupMembers();
@@ -745,68 +764,77 @@ function ConRO:RaidBuff(spellID)
 	local buffedRaid = false;
 
 	local numGroupMembers = GetNumGroupMembers();
-		if numGroupMembers >= 6 then
-			selfhasBuff = true;
-			for i = 1, numGroupMembers do -- For each raid member
-				local unit = "raid" .. i;
-				if UnitExists(unit) then
-					if not UnitIsDeadOrGhost(unit) and UnitInRange(unit) then
-						for x=1, 40 do
-							local spell = select(10, UnitAura(unit, x, 'HELPFUL'));
-							if spell == spellID then
-								haveBuff = true;
-								break;
-							end
-						end
-						if not haveBuff then
+	if numGroupMembers >= 6 then
+		selfhasBuff = true;
+		for i = 1, numGroupMembers do -- For each raid member
+			local unit = "raid" .. i;
+			if UnitExists(unit) then
+				if not UnitIsDeadOrGhost(unit) and UnitInRange(unit) then
+					for x = 1, 40 do
+						local aura = C_UnitAuras.GetAuraDataByIndex(unit, x, 'HELPFUL');
+						if not aura then break end  -- Exit if no more auras
+
+						if aura.spellId == spellID then
+							haveBuff = true;
 							break;
 						end
-					else
-						haveBuff = true;
 					end
-				end
-			end
-		elseif numGroupMembers >= 2 and numGroupMembers <= 5 then
-			for i = 1, 4 do -- For each party member
-				local unit = "party" .. i;
-				if UnitExists(unit) then
-					if not UnitIsDeadOrGhost(unit) and UnitInRange(unit) then
-						for x=1, 40 do
-							local spell = select(10, UnitAura(unit, x, 'HELPFUL'));
-							if spell == spellID then
-								haveBuff = true;
-								break;
-							end
-						end
-						if not haveBuff then
-							break;
-						end
-					else
-						haveBuff = true;
+					if not haveBuff then
+						break;
 					end
-				end
-			end
-			for x=1, 40 do
-				local spell = select(10, UnitAura('player', x, 'HELPFUL'));
-				if spell == spellID then
-					selfhasBuff = true;
-					break;
-				end
-			end
-		elseif numGroupMembers <= 1 then
-			for x=1, 40 do
-				local spell = select(10, UnitAura('player', x, 'HELPFUL'));
-				if spell == spellID then
-					selfhasBuff = true;
+				else
 					haveBuff = true;
-					break;
 				end
 			end
 		end
-		if selfhasBuff and haveBuff then
-			buffedRaid = true;
+	elseif numGroupMembers >= 2 and numGroupMembers <= 5 then
+		for i = 1, 4 do -- For each party member
+			local unit = "party" .. i;
+			if UnitExists(unit) then
+				if not UnitIsDeadOrGhost(unit) and UnitInRange(unit) then
+					for x = 1, 40 do
+						local aura = C_UnitAuras.GetAuraDataByIndex(unit, x, 'HELPFUL');
+						if not aura then break end  -- Exit if no more auras
+
+						if aura.spellId == spellID then
+							haveBuff = true;
+							break;
+						end
+					end
+					if not haveBuff then
+						break;
+					end
+				else
+					haveBuff = true;
+				end
+			end
 		end
---	self:Print(self.Colors.Info .. numGroupMembers);
+		for x = 1, 40 do
+			local aura = C_UnitAuras.GetAuraDataByIndex('player', x, 'HELPFUL');
+			if not aura then break end  -- Exit if no more auras
+
+			if aura.spellId == spellID then
+				selfhasBuff = true;
+				break;
+			end
+		end
+	elseif numGroupMembers <= 1 then
+		for x = 1, 40 do
+			local aura = C_UnitAuras.GetAuraDataByIndex('player', x, 'HELPFUL');
+			if not aura then break end  -- Exit if no more auras
+
+			if aura.spellId == spellID then
+				selfhasBuff = true;
+				haveBuff = true;
+				break;
+			end
+		end
+	end
+
+	if selfhasBuff and haveBuff then
+		buffedRaid = true;
+	end
+
 	return buffedRaid;
 end
 
@@ -816,13 +844,50 @@ function ConRO:OneBuff(spellID)
 	local someoneHas = false;
 
 	local numGroupMembers = GetNumGroupMembers();
-		if numGroupMembers >= 6 then
-			for i = 1, numGroupMembers do -- For each raid member
-				local unit = "raid" .. i;
+
+	-- For raid groups
+	if numGroupMembers >= 6 then
+		for i = 1, numGroupMembers do -- For each raid member
+			local unit = "raid" .. i;
+			if UnitExists(unit) then
+				for x = 1, 40 do
+					local aura = C_UnitAuras.GetAuraDataByIndex(unit, x, 'PLAYER|HELPFUL');
+					if not aura then break end  -- Exit if no more auras
+
+					if aura.spellId == spellID then
+						haveBuff = true;
+						break;
+					end
+				end
+				if haveBuff then
+					break;
+				end
+			end
+		end
+
+	-- For party groups
+	elseif numGroupMembers >= 2 and numGroupMembers <= 5 then
+		-- Check the player first
+		for x = 1, 40 do
+			local aura = C_UnitAuras.GetAuraDataByIndex('player', x, 'PLAYER|HELPFUL');
+			if not aura then break end  -- Exit if no more auras
+
+			if aura.spellId == spellID then
+				selfhasBuff = true;
+				break;
+			end
+		end
+
+		-- If the player doesn't have the buff, check the party
+		if not selfhasBuff then
+			for i = 1, 4 do -- For each party member
+				local unit = "party" .. i;
 				if UnitExists(unit) then
-					for x=1, 40 do
-						local spell = select(10, UnitAura(unit, x, 'PLAYER|HELPFUL'));
-						if spell == spellID then
+					for x = 1, 40 do
+						local aura = C_UnitAuras.GetAuraDataByIndex(unit, x, 'PLAYER|HELPFUL');
+						if not aura then break end  -- Exit if no more auras
+
+						if aura.spellId == spellID then
 							haveBuff = true;
 							break;
 						end
@@ -832,91 +897,90 @@ function ConRO:OneBuff(spellID)
 					end
 				end
 			end
-		elseif numGroupMembers >= 2 and numGroupMembers <= 5 then
-			for x=1, 40 do
-				local spell = select(10, UnitAura('player', x, 'PLAYER|HELPFUL'));
-				if spell == spellID then
-					selfhasBuff = true;
-					break;
-				end
-			end
-			if not selfhasBuff then
-				for i = 1, 4 do -- For each party member
-					local unit = "party" .. i;
-					if UnitExists(unit) then
-						for x=1, 40 do
-							local spell = select(10, UnitAura(unit, x, 'PLAYER|HELPFUL'));
-							if spell == spellID then
-								haveBuff = true;
-								break;
-							end
-						end
-						if haveBuff then
-							break;
-						end
-					end
-				end
-			end
-		elseif numGroupMembers <= 1 then
-			for x=1, 40 do
-				local spell = select(10, UnitAura('player', x, 'PLAYER|HELPFUL'));
-				if spell == spellID then
-					selfhasBuff = true;
-					break;
-				end
+		end
+
+	-- For solo players
+	elseif numGroupMembers <= 1 then
+		for x = 1, 40 do
+			local aura = C_UnitAuras.GetAuraDataByIndex('player', x, 'PLAYER|HELPFUL');
+			if not aura then break end  -- Exit if no more auras
+
+			if aura.spellId == spellID then
+				selfhasBuff = true;
+				break;
 			end
 		end
-		if selfhasBuff or haveBuff then
-			someoneHas = true;
+	end
+
+	if selfhasBuff or haveBuff then
+		someoneHas = true;
 		end
---	self:Print(self.Colors.Info .. numGroupMembers);
+
 	return someoneHas;
 end
 
 function ConRO:GroupBuffCount(spellID)
 	local buffCount = 0;
-
 	local numGroupMembers = GetNumGroupMembers();
-		if numGroupMembers >= 6 then
-			for i = 1, numGroupMembers do -- For each raid member
-				local unit = "raid" .. i;
-				if UnitExists(unit) then
-					for x=1, 40 do
-						local spell = select(10, UnitAura(unit, x, 'PLAYER|HELPFUL'));
-						if spell == spellID then
-							buffCount = buffCount + 1;
-						end
+
+	if numGroupMembers >= 6 then
+		-- For each raid member
+		for i = 1, numGroupMembers do
+			local unit = "raid" .. i;
+			if UnitExists(unit) then
+				for x = 1, 40 do
+					local aura = C_UnitAuras.GetAuraDataByIndex(unit, x, 'PLAYER|HELPFUL');
+					if not aura then break end  -- Exit if no more auras
+
+					if aura.spellId == spellID then
+						buffCount = buffCount + 1;
+						break;  -- Exit loop after finding the buff
 					end
-				end
-			end
-		elseif numGroupMembers >= 2 and numGroupMembers <= 5 then
-			for i = 1, 4 do -- For each party member
-				local unit = "party" .. i;
-				if UnitExists(unit) then
-					for x=1, 40 do
-						local spell = select(10, UnitAura(unit, x, 'PLAYER|HELPFUL'));
-						if spell == spellID then
-							buffCount = buffCount + 1;
-						end
-					end
-				end
-			end
-			for x=1, 40 do
-				local spell = select(10, UnitAura('player', x, 'PLAYER|HELPFUL'));
-				if spell == spellID then
-					buffCount = buffCount + 1;
-				end
-			end
-		elseif numGroupMembers <= 1 then
-			for x=1, 40 do
-				local spell = select(10, UnitAura('player', x, 'PLAYER|HELPFUL'));
-				if spell == spellID then
-					buffCount = buffCount + 1;
 				end
 			end
 		end
 
---	self:Print(self.Colors.Info .. numGroupMembers);
+	elseif numGroupMembers >= 2 and numGroupMembers <= 5 then
+		-- For each party member
+		for i = 1, 4 do
+			local unit = "party" .. i;
+			if UnitExists(unit) then
+				for x = 1, 40 do
+					local aura = C_UnitAuras.GetAuraDataByIndex(unit, x, 'PLAYER|HELPFUL');
+					if not aura then break end  -- Exit if no more auras
+
+					if aura.spellId == spellID then
+						buffCount = buffCount + 1;
+						break;  -- Exit loop after finding the buff
+					end
+				end
+			end
+		end
+
+		-- Check the player
+		for x = 1, 40 do
+			local aura = C_UnitAuras.GetAuraDataByIndex('player', x, 'PLAYER|HELPFUL');
+			if not aura then break end  -- Exit if no more auras
+
+			if aura.spellId == spellID then
+				buffCount = buffCount + 1;
+				break;  -- Exit loop after finding the buff
+			end
+		end
+
+	elseif numGroupMembers <= 1 then
+		-- Check solo player
+		for x = 1, 40 do
+			local aura = C_UnitAuras.GetAuraDataByIndex('player', x, 'PLAYER|HELPFUL');
+			if not aura then break end  -- Exit if no more auras
+
+			if aura.spellId == spellID then
+				buffCount = buffCount + 1;
+				break;  -- Exit loop after finding the buff
+			end
+		end
+	end
+
 	return buffCount;
 end
 
