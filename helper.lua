@@ -1084,117 +1084,157 @@ end
 
 ConRO.Spellbook = {};
 function ConRO:FindSpellInSpellbook(spellID)
-	local spellName = GetSpellInfo(spellID);
-	if ConRO.Spellbook[spellName] then
-		return ConRO.Spellbook[spellName];
-	end
+    local spellInfo = C_Spell.GetSpellInfo(spellID)
+    if not spellInfo then
+        return nil
+    end
 
-	local _, _, offset, numSpells = GetSpellTabInfo(2);
-	local booktype = 'spell';
+    local spellName = spellInfo.name
+    if ConRO.Spellbook[spellName] then
+        return ConRO.Spellbook[spellName]
+    end
 
-	for index = offset + 1, numSpells + offset do
-		local spellID = select(2, GetSpellBookItemInfo(index, booktype));
-		if spellID and spellName == GetSpellBookItemName(index, booktype) then
-			ConRO.Spellbook[spellName] = index;
-			return index;
-		end
-	end
+    -- Check the first skill line tab (index 2 in your original code)
+    local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(2)
+    if skillLineInfo then
+        local offset = skillLineInfo.itemIndexOffset
+        local numSpells = skillLineInfo.numSpellBookItems
+        local booktype = Enum.SpellBookSpellBank.Player
 
-	local _, _, offset, numSpells = GetSpellTabInfo(3);
-	local booktype = 'spell';
+        for index = offset + 1, numSpells + offset do
+            local spellBookInfo = C_SpellBook.GetSpellBookItemInfo(index, booktype)
+            if spellBookInfo and spellName == spellBookInfo.name then
+                ConRO.Spellbook[spellName] = index
+                return index
+            end
+        end
+    end
 
-	for index = offset + 1, numSpells + offset do
-		local spellID = select(2, GetSpellBookItemInfo(index, booktype));
-		if spellID and spellName == GetSpellBookItemName(index, booktype) then
-			ConRO.Spellbook[spellName] = index;
-			return index;
-		end
-	end
+    -- Check the second skill line tab (index 3 in your original code)
+    skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(3)
+    if skillLineInfo then
+        local offset = skillLineInfo.itemIndexOffset
+        local numSpells = skillLineInfo.numSpellBookItems
+        local booktype = Enum.SpellBookSpellBank.Player
 
-	return nil;
+        for index = offset + 1, numSpells + offset do
+            local spellBookInfo = C_SpellBook.GetSpellBookItemInfo(index, booktype)
+            if spellBookInfo and spellName == spellBookInfo.name then
+                ConRO.Spellbook[spellName] = index
+                return index
+            end
+        end
+    end
+
+    return nil
 end
 
 function ConRO:FindCurrentSpell(spellID)
-	local spellName = GetSpellInfo(spellID);
-	local _, _, offset, numSpells = GetSpellTabInfo(2);
-	local booktype = 'spell';
-	local hasSpell = false;
+    local spellInfo = C_Spell.GetSpellInfo(spellID)
+    if not spellInfo then
+        return false
+    end
 
-	for index = offset + 1, numSpells + offset do
-		local spellID = select(2, GetSpellBookItemInfo(index, booktype));
-		if spellID and spellName == GetSpellBookItemName(index, booktype) then
-			hasSpell = true;
-		end
-	end
+    local spellName = spellInfo.name
+    local hasSpell = false
 
-	local _, _, offset, numSpells = GetSpellTabInfo(3);
-	local booktype = 'spell';
+    -- Check the first skill line tab (index 2 in your original code)
+    local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(2)
+    if skillLineInfo then
+        local offset = skillLineInfo.itemIndexOffset
+        local numSpells = skillLineInfo.numSpellBookItems
+        local booktype = Enum.SpellBookSpellBank.Player
 
-	for index = offset + 1, numSpells + offset do
-		local spellID = select(2, GetSpellBookItemInfo(index, booktype));
-		if spellID and spellName == GetSpellBookItemName(index, booktype) then
-			hasSpell = true;
-		end
-	end
+        for index = offset + 1, numSpells + offset do
+            local spellBookInfo = C_SpellBook.GetSpellBookItemInfo(index, booktype)
+            if spellBookInfo and spellName == spellBookInfo.name then
+                hasSpell = true
+                break
+            end
+        end
+    end
 
-	return hasSpell;
+    -- Check the second skill line tab (index 3 in your original code)
+    skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(3)
+    if skillLineInfo then
+        local offset = skillLineInfo.itemIndexOffset
+        local numSpells = skillLineInfo.numSpellBookItems
+        local booktype = Enum.SpellBookSpellBank.Player
+
+        for index = offset + 1, numSpells + offset do
+            local spellBookInfo = C_SpellBook.GetSpellBookItemInfo(index, booktype)
+            if spellBookInfo and spellName == spellBookInfo.name then
+                hasSpell = true
+                break
+            end
+        end
+    end
+
+    return hasSpell
 end
 
 function ConRO:IsSpellInRange(spellCheck, unit)
-	local unit = unit or 'target';
-	local range = false;
-	local spellid = spellCheck.spellID;
-	local talentID = spellCheck.talentID;
-	local spell = GetSpellInfo(spellid);
-	local have = ConRO:TalentChosen(talentID);
-	local known = IsPlayerSpell(spellid);
+    local unit = unit or 'target'
+    local range = false
+    local spellid = spellCheck.spellID
+    local talentID = spellCheck.talentID
+    local have = ConRO:TalentChosen(talentID)
+    local known = IsPlayerSpell(spellid)
 
-	if have then
-		known = true;
-	end
+    if have then
+        known = true
+    end
 
-	if known and ConRO:TarHostile() then
-		local inRange = IsSpellInRange(spell, unit);
-		if inRange == nil then
-			local myIndex = nil;
-			local name, texture, offset, numSpells, isGuild = GetSpellTabInfo(2);
-			local booktype = "spell";
-			for index = offset + 1, numSpells + offset do
-				local spellID = select(2, GetSpellBookItemInfo(index, booktype));
-				if spellID and spell == GetSpellBookItemName(index, booktype) then
-					myIndex = index;
-					break;
-				end
-			end
+    if known and ConRO:TarHostile() then
+        -- Use C_Spell.IsSpellInRange instead of IsSpellInRange
+        local inRange = C_Spell.IsSpellInRange(spellid, unit)
+        
+        if inRange == nil then
+            local myIndex = nil
+            local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(2) -- Get skill line info for the second tab
+            
+            if skillLineInfo then
+                local offset = skillLineInfo.itemIndexOffset
+                local numSpells = skillLineInfo.numSpellBookItems
+                local booktype = Enum.SpellBookSpellBank.Player
 
-			local numPetSpells = HasPetSpells();
-			if myIndex == 0 and numPetSpells then
-				booktype = "pet";
-				for index = 1, numPetSpells do
-					local spellID = select(2, GetSpellBookItemInfo(index, booktype));
-					if spellID and spell == GetSpellBookItemName(index, booktype) then
-						myIndex = index;
-						break;
-					end
-				end
-			end
+                if offset and numSpells then
+                    for index = offset + 1, numSpells + offset do
+                        local spellBookInfo = C_SpellBook.GetSpellBookItemInfo(index, booktype)
+                        if spellBookInfo and spellid == spellBookInfo.spellID then
+                            myIndex = index
+                            break
+                        end
+                    end
+                end
+            else
+                -- Handle case where skillLineInfo is nil
+                print("Error: Unable to retrieve skill line information.")
+            end
 
-			if myIndex then
-				inRange = IsSpellInRange(myIndex, booktype, unit);
-			end
+            local numPetSpells, _ = C_SpellBook.HasPetSpells()
+            if not myIndex and numPetSpells then
+                booktype = Enum.SpellBookSpellBank.Pet
+                for index = 1, numPetSpells do
+                    local spellBookInfo = C_SpellBook.GetSpellBookItemInfo(index, booktype)
+                    if spellBookInfo and spellid == spellBookInfo.spellID then
+                        myIndex = index
+                        break
+                    end
+                end
+            end
 
-			if inRange == 1 then
-				range = true;
-			end
+            if myIndex then
+                inRange = C_Spell.IsSpellInRange(myIndex, unit)
+            end
+        end
 
-			return range;
-		end
-
-		if inRange == 1 then
-			range = true;
-		end
-	end
-  return range;
+        if inRange == true then
+            range = true
+        end
+    end
+    
+    return range
 end
 
 function ConRO:AbilityReady(spellCheck, timeShift, spelltype)
