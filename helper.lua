@@ -1025,7 +1025,11 @@ function ConRO:EndChannel(target)
 
 	-- we can only check player global cooldown
 	if target == 'player' then
-		local gstart, gduration = GetSpellCooldown(61304);
+		local gstart, gduration
+			local gstart, gduration
+			local spellCooldownInfo = _GlobalCooldown and C_Spell.GetSpellCooldown(_GlobalCooldown)
+			gstart = spellCooldownInfo and spellCooldownInfo.startTime
+			gduration = spellCooldownInfo and spellCooldownInfo.duration
 		gcd = gduration - (t - gstart);
 
 		if gcd < 0 then
