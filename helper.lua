@@ -446,91 +446,51 @@ local HarmItems = {
 }]]
 
 function ConRO:Targets(spellID)
-	local target_in_range = false;
-	local number_in_range = 0;
-		if spellID == "Melee" then
-			if not UnitIsFriend("player", "target") and UnitExists("target") then
-				if IsItemInRange(37727, "target") then
-					target_in_range = true;
-				end
-			end
+    local target_in_range = false;
+    local number_in_range = 0;
 
-			for i = 1, 15 do
-				if not UnitIsFriend("player", 'nameplate' .. i) then
-					if UnitExists('nameplate' .. i) and IsItemInRange(37727, "nameplate"..i) == true and UnitName('nameplate' .. i) ~= "Explosive" and UnitName('nameplate' .. i) ~= "Incorporeal Being" then
-						number_in_range = number_in_range + 1
-					end
-				end
-			end
-		elseif spellID == "10" then
-			if not UnitIsFriend("player", "target") and UnitExists("target") then
-				if IsItemInRange(32321, "target") then
-					target_in_range = true;
-				end
-			end
+    local itemForRangeCheck
 
-			for i = 1, 15 do
-				if not UnitIsFriend("player", 'nameplate' .. i) then
-					if UnitExists('nameplate' .. i) and IsItemInRange(32321, "nameplate"..i) == true and UnitName('nameplate' .. i) ~= "Explosive" and UnitName('nameplate' .. i) ~= "Incorporeal Being" then
-						number_in_range = number_in_range + 1
-					end
-				end
-			end
-		elseif spellID == "15" then
-			if not UnitIsFriend("player", "target") and UnitExists("target") then
-				if IsItemInRange(33069, "target") then
-					target_in_range = true;
-				end
-			end
+    -- Define the item ID based on the spellID
+    if spellID == "Melee" then
+        itemForRangeCheck = 37727
+    elseif spellID == "10" then
+        itemForRangeCheck = 32321
+    elseif spellID == "15" then
+        itemForRangeCheck = 33069
+    elseif spellID == "25" then
+        itemForRangeCheck = 24268
+    elseif spellID == "40" then
+        itemForRangeCheck = 28767
+    end
 
-			for i = 1, 15 do
-				if not UnitIsFriend("player", 'nameplate' .. i) then
-					if UnitExists('nameplate' .. i) and IsItemInRange(33069, "nameplate"..i) == true and UnitName('nameplate' .. i) ~= "Explosive" and UnitName('nameplate' .. i) ~= "Incorporeal Being" then
-						number_in_range = number_in_range + 1
-					end
-				end
-			end
-		elseif spellID == "25" then
-			if not UnitIsFriend("player", "target") and UnitExists("target") then
-				if IsItemInRange(24268, "target") then
-					target_in_range = true;
-				end
-			end
+    if itemForRangeCheck then
+        if not UnitIsFriend("player", "target") and UnitExists("target") then
+            if C_Item.IsItemInRange(itemForRangeCheck, "target") then
+                target_in_range = true;
+            end
+        end
 
-			for i = 1, 15 do
-				if not UnitIsFriend("player", 'nameplate' .. i) then
-					if UnitExists('nameplate' .. i) and IsItemInRange(24268, "nameplate"..i) == true and UnitName('nameplate' .. i) ~= "Explosive" and UnitName('nameplate' .. i) ~= "Incorporeal Being" then
-						number_in_range = number_in_range + 1
-					end
-				end
-			end
-		elseif spellID == "40" then
-			if not UnitIsFriend("player", "target") and UnitExists("target") then
-				if IsItemInRange(28767, "target") then
-					target_in_range = true;
-				end
-			end
+        for i = 1, 15 do
+            if not UnitIsFriend("player", 'nameplate' .. i) then
+                if UnitExists('nameplate' .. i) and C_Item.IsItemInRange(itemForRangeCheck, 'nameplate' .. i) and UnitName('nameplate' .. i) ~= "Explosive" and UnitName('nameplate' .. i) ~= "Incorporeal Being" then
+                    number_in_range = number_in_range + 1;
+                end
+            end
+        end
+    else
+        if ConRO:IsSpellInRange(spellID, "target") then
+            target_in_range = true;
+        end
 
-			for i = 1, 15 do
-				if not UnitIsFriend("player", 'nameplate' .. i) then
-					if UnitExists('nameplate' .. i) and IsItemInRange(28767, "nameplate"..i) == true and UnitName('nameplate' .. i) ~= "Explosive" and UnitName('nameplate' .. i) ~= "Incorporeal Being" then
-						number_in_range = number_in_range + 1
-					end
-				end
-			end
-		else
-			if ConRO:IsSpellInRange(spellID, "target") then
-				target_in_range = true;
-			end
+        for i = 1, 15 do
+            if UnitExists('nameplate' .. i) and ConRO:IsSpellInRange(spellID, 'nameplate' .. i) and UnitName('nameplate' .. i) ~= "Explosive" and UnitName('nameplate' .. i) ~= "Incorporeal Being" then
+                number_in_range = number_in_range + 1;
+            end
+        end
+    end
 
-			for i = 1, 15 do
-				if UnitExists('nameplate' .. i) and ConRO:IsSpellInRange(spellID, 'nameplate' .. i) and UnitName('nameplate' .. i) ~= "Explosive" and UnitName('nameplate' .. i) ~= "Incorporeal Being" then
-					number_in_range = number_in_range + 1
-				end
-			end
-		end
-	--print(number_in_range)
-	return number_in_range, target_in_range;
+    return number_in_range, target_in_range;
 end
 
 function ConRO:UnitAura(spellID, timeShift, unit, filter, isWeapon)
