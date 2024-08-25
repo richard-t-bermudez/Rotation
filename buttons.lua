@@ -2220,47 +2220,40 @@ end
 
 function ConRO:AddStandardButton(button, hotkey)
     local type = button:GetAttribute('type')
-
     if type then
         local actionType = button:GetAttribute(type)
         local id
         local spellId
 
         if type == 'action' then
-            local slot = button:GetAttribute('action')
-
-            if not slot or slot == 0 then
-                slot = button:GetPagedID()
-            end
-            if not slot or slot == 0 then
-                slot = button:CalculateAction()
-            end
-
-            -- Check if the slot is valid before proceeding
-            if slot and slot > 0 then
-                local actionType, actionId = GetActionInfo(slot)
-
-                if actionType == 'spell' then
-                    spellId = actionId
-                elseif actionType == 'item' then
-                    spellId = actionId
-                elseif actionType == 'macro' then
-                    spellId = GetMacroSpell(actionId)
-                else
-                    return
-                end
+            local slot = button:GetAttribute('action') or button:GetPagedID() or button:CalculateAction()
+            if HasAction(slot) then
+                type, id = GetActionInfo(slot)
             else
                 return
             end
         end
 
-        -- Add the button only if a valid spellId is found
+        if type == 'macro' then
+            spellId = GetMacroSpell(actionType)
+            if not spellId then
+                local slot = button:GetAttribute('action') or button:GetPagedID() or button:CalculateAction()
+                local macroName = GetActionText(slot)
+                id = GetMacroIndexByName(macroName)
+                spellId = GetMacroSpell(id)
+            end
+        elseif type == 'item' then
+            spellId = C_Item.GetItemSpell(id)
+        elseif type == 'spell' then
+            local spellInfo = C_Spell.GetSpellInfo(id)
+            spellId = spellInfo and spellInfo.spellID
+        end
+
         if spellId then
             self:AddButton(spellId, button, hotkey)
         end
     end
 end
-
 
 function ConRO:DefAddButton(spellID, button, hotkey)
 	if spellID then
