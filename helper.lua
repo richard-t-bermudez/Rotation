@@ -20,33 +20,36 @@ function ConRO:SpecName()
 end
 
 function ConRO:CheckTalents()
-	self.PlayerTalents = {}
-	wipe(self.PlayerTalents)
+    self.PlayerTalents = {}
+    wipe(self.PlayerTalents)
 
     local configID = C_ClassTalents.GetActiveConfigID()
-    local configInfo = configID and C_Traits.GetConfigInfo(configID)
-    local treeIDs = configInfo and configInfo.treeIDs
+    if not configID then return end
 
-    if not treeIDs then
-        return
-    end
+    local configInfo = C_Traits.GetConfigInfo(configID)
+    local treeIDs = configInfo and configInfo.treeIDs
+    if not treeIDs then return end
 
     for _, treeID in ipairs(treeIDs) do
         local nodes = C_Traits.GetTreeNodes(treeID)
         for _, nodeID in ipairs(nodes) do
-            if configID then
-                local nodeInfo = C_Traits.GetNodeInfo(configID, nodeID)
-                if nodeInfo.currentRank and nodeInfo.currentRank > 0 then
-                    local entryID = nodeInfo.activeEntry and nodeInfo.activeEntry.entryID
-                    local entryInfo = entryID and C_Traits.GetEntryInfo(configID, entryID)
-                    local definitionInfo = entryInfo and entryInfo.definitionID and C_Traits.GetDefinitionInfo(entryInfo.definitionID)
-
-                    if definitionInfo then
-                        self.PlayerTalents[definitionInfo.spellID] = nodeInfo.currentRank
-                        if nodeInfo.subTreeID then
-                            local subTreeInfo = C_Traits.GetSubTreeInfo(configID, nodeInfo.subTreeID)
-                            if subTreeInfo and not subTreeInfo.isActive then
-                                self.PlayerTalents[definitionInfo.spellID] = nil
+            local nodeInfo = C_Traits.GetNodeInfo(configID, nodeID)
+            if nodeInfo and nodeInfo.currentRank and nodeInfo.currentRank > 0 then
+                local entryID = nodeInfo.activeEntry and nodeInfo.activeEntry.entryID or 
+                                nodeInfo.entryIDs and nodeInfo.entryIDs[1]
+                if entryID then
+                    local entryInfo = C_Traits.GetEntryInfo(configID, entryID)
+                    local definitionID = entryInfo and entryInfo.definitionID
+                    if definitionID then
+                        local definitionInfo = C_Traits.GetDefinitionInfo(definitionID)
+                        if definitionInfo then
+                            local spellId = definitionInfo.spellID or definitionInfo.overriddenSpellID
+                            if spellId then
+                                self.PlayerTalents[entryID] = {
+                                    id = spellId,
+                                    rank = nodeInfo.currentRank,
+                                    isHeroTalent = nodeInfo.subTreeID ~= nil
+                                }
                             end
                         end
                     end
@@ -55,7 +58,6 @@ function ConRO:CheckTalents()
         end
     end
 end
-
 
 function ConRO:IsPvP()
 	local _is_PvP = UnitIsPVP('player');
