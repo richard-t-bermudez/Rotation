@@ -2367,10 +2367,13 @@ function ConRO:PLAYER_TARGET_CHANGED()
 
 		if ConRO.db.profile.enableWindow and (ConRO.db.profile.combatWindow or ConRO:HealSpec()) and ConRO:TarHostile() then
 			ConROWindow:Show();
+			ConRODefenseWindow:Show();
 		elseif ConRO.db.profile.enableWindow and not (ConRO.db.profile.combatWindow or ConRO:HealSpec()) then
 			ConROWindow:Show();
+			ConRODefenseWindow:Show();
 		else
 			ConROWindow:Hide();
+			ConRODefenseWindow:Hide();
 		end
 
 		if ConRO.db.profile.enableDefenseWindow and ConRO.db.profile.combatWindow and ConRO:TarHostile() then
